@@ -34,25 +34,23 @@ class APNewsScraper:
         self.chromedriver_name=chromedriver_name
         self.fileName=fileName
         self.driver = None
-        # self.driver = webdriver.Chrome(service=webdriver.chrome.service.Service(executable_path=self.setDriverpath()))
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput() 
 
-    # def __enter__(self):
-    #     return self
+
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
         self.driver = webdriver.Chrome(service=webdriver.chrome.service.Service(executable_path=self.setDriverpath()))
         return self
 
-    # def __exit__(self, exc_type, exc_val, exc_tb):
-    #     self.driver.quit()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Quits the ChromeDriver on exiting the context."""
         if self.driver:
             self.driver.quit()
 
     def setDriverpath(self):
+        """Creates and returns the dynamic ChromeDriver Path"""
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
         driverfolder = os.path.join(script_dir, "CONFIG")
         driverPath=os.path.join(driverfolder, self.chromedriver_name)
@@ -60,8 +58,8 @@ class APNewsScraper:
             raise FileNotFoundError(f"No such file or directory: '{driverPath}'")
         return driverPath
 
-
     def createFolderImages(self):
+        """Creates and returns the output path for the downloaded images"""
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
         save_folder = os.path.join(script_dir, "IMAGES")
         if os.path.exists(save_folder):
@@ -72,6 +70,7 @@ class APNewsScraper:
         return save_folder
     
     def createfileOutput(self):
+        """Creates and returns the output path for the Excel file."""
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
         output_folder = os.path.join(script_dir, "OUTPUT")
         if os.path.exists(output_folder):
@@ -82,7 +81,9 @@ class APNewsScraper:
         output_path = os.path.join(output_folder, self.fileName)
         return output_path
     
-    def calcDates(self,delta):
+    @staticmethod
+    def calcDates(delta):
+        """Calculates the start and end dates based on the given delta."""
         delta=int(delta)
         now = datetime.now()
         current_year = int(now.year)
@@ -147,7 +148,7 @@ class APNewsScraper:
             close_button.click()
             time.sleep(1)
             logging.info("Pop-up closed.")
-        except Exception as e:
+        except:
             logging.info("No pop-up found.")
 
 
@@ -182,6 +183,7 @@ class APNewsScraper:
     
 
     def orderPageFromNewest(self):
+        """Orders the search results by newest articles."""
         try:
             currentURL=self.driver.current_url
             newestURL=currentURL.replace("#nt=navsearch","&s=3")
@@ -191,7 +193,9 @@ class APNewsScraper:
             logging.error(f"Failed to load website by Newest Articles: {e}")
             raise
 
-    def convertToDate(self,timestamp_ms):
+    @staticmethod
+    def convertToDate(timestamp_ms):
+        """Converts a timestamp in milliseconds to a formatted date string."""
         timestamp_s = timestamp_ms / 1000
         dt_object = datetime.fromtimestamp(timestamp_s)
         formatted_date = dt_object.strftime("%m/%d/%Y")
@@ -264,7 +268,8 @@ class APNewsScraper:
                     break 
         return news_data
 
-    def download_image(self, image_url,save_folder):
+    @staticmethod
+    def download_image(image_url,save_folder):
         """Downloads the image and saves it to an IMAGES folder in the script's directory."""
         try:
             response = requests.get(image_url)
@@ -286,7 +291,8 @@ class APNewsScraper:
         """Counts the occurrences of the search phrase in the title and description."""
         return title.lower().count(self.search_phrase.lower()) + description.lower().count(self.search_phrase.lower())
 
-    def detect_money(self, title, description):
+    @staticmethod
+    def detect_money(title, description):
         """Detects the presence of monetary values in the text."""
         text = f"{title} {description}"
         money_pattern = r"\$\d+[\.,]?\d*|\d+[\.,]?\d*\s*(?:dollars|USD)"
