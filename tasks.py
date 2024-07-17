@@ -4,12 +4,10 @@ import time
 from datetime import datetime, date
 import openpyxl
 import requests
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from RPA.Browser.Selenium import Selenium
 import os
 import shutil
+from robocorp.tasks import task
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -33,21 +31,19 @@ class APNewsScraper:
         self.base_url = base_url
         self.chromedriver_name=chromedriver_name
         self.fileName=fileName
-        self.driver = None
+        self.driver = Selenium() 
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput() 
 
-
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
-        self.driver = webdriver.Chrome(service=webdriver.chrome.service.Service(executable_path=self.setDriverpath()))
+        self.driver.open_browser(browser="chrome", executable_path=self.setDriverpath())
         return self
-
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Quits the ChromeDriver on exiting the context."""
         if self.driver:
-            self.driver.quit()
+            self.driver.close_browser()
 
     def setDriverpath(self):
         """Creates and returns the dynamic ChromeDriver Path"""
@@ -72,13 +68,10 @@ class APNewsScraper:
     def createfileOutput(self):
         """Creates and returns the output path for the Excel file."""
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
-        output_folder = os.path.join(script_dir, "OUTPUT")
-        if os.path.exists(output_folder):
-            shutil.rmtree(output_folder)
-            os.makedirs(output_folder)
-        else:
-            os.makedirs(output_folder)
+        output_folder = os.path.join(script_dir, "output")
         output_path = os.path.join(output_folder, self.fileName)
+        if os.path.exists(output_path):
+            os.remove(output_path)
         return output_path
     
     @staticmethod
@@ -129,10 +122,11 @@ class APNewsScraper:
         except Exception as e:
             logging.error(f"An error occurred: {e}")
 
+
     def load_website(self):
         """Loads the AP News website."""
         try:
-            self.driver.get(self.base_url)
+            self.driver.go_to(self.base_url)
             logging.info(f"Website loaded successfully: {self.base_url}")
         except Exception as e:
             logging.error(f"Failed to load website: {e}")
@@ -142,52 +136,43 @@ class APNewsScraper:
     def close_popup(self):
         """Closes the pop-up window if present."""
         try:
-            close_button = WebDriverWait(self.driver, 1).until(
-                EC.element_to_be_clickable((By.CLASS_NAME, "fancybox-close"))
-            )
-            close_button.click()
+            self.driver.wait_until_element_is_visible("class:fancybox-close", timeout=1)
+            self.driver.click_element("class:fancybox-close")
             time.sleep(1)
             logging.info("Pop-up closed.")
         except:
             logging.info("No pop-up found.")
 
-
+    
     def search_news(self):
         """Enters the search phrase and waits for the results to load."""
         try:
-            search_field = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "SearchOverlay-search-button"))
-            )
+            self.driver.wait_until_element_is_visible("class:SearchOverlay-search-button", timeout=10)
             self.close_popup()
-            search_field.click()
+            self.driver.click_element("class:SearchOverlay-search-button")
             self.close_popup()
-            search_tab = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "SearchOverlay-search-input"))
-            )
+            self.driver.wait_until_element_is_visible("class:SearchOverlay-search-input", timeout=10)
             self.close_popup()
-            search_tab.click()
+            self.driver.click_element("class:SearchOverlay-search-input")
             self.close_popup()
-            search_tab.send_keys(self.search_phrase)
+            self.driver.input_text("class:SearchOverlay-search-input", self.search_phrase)
             self.close_popup()
-            search_tab.submit()
+            self.driver.press_keys("class:SearchOverlay-search-input", "ENTER")
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
-            element_present = EC.presence_of_element_located((By.CLASS_NAME, 'SearchResultsModule-count-desktop'))
-            WebDriverWait(self.driver, 10).until(element_present)
-            elements = self.driver.find_elements(By.CLASS_NAME, 'SearchResultsModule-count-desktop')
-            if not elements:
+            self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=10)
+            if self.driver.get_element_count("class:SearchResultsModule-count-desktop") == 0:
                 raise Exception('Search Returned empty')    
 
         except Exception as e:
             logging.error(f"Failed to search for news: {e}")
             raise
-    
 
     def orderPageFromNewest(self):
         """Orders the search results by newest articles."""
         try:
-            currentURL=self.driver.current_url
+            currentURL=self.driver.get_location()
             newestURL=currentURL.replace("#nt=navsearch","&s=3")
-            self.driver.get(newestURL)
+            self.driver.go_to(newestURL)
             logging.info("Ordered by Newest Articles.")
         except Exception as e:
             logging.error(f"Failed to load website by Newest Articles: {e}")
@@ -196,6 +181,7 @@ class APNewsScraper:
     @staticmethod
     def convertToDate(timestamp_ms):
         """Converts a timestamp in milliseconds to a formatted date string."""
+        timestamp_ms=int(timestamp_ms)
         timestamp_s = timestamp_ms / 1000
         dt_object = datetime.fromtimestamp(timestamp_s)
         formatted_date = dt_object.strftime("%m/%d/%Y")
@@ -206,66 +192,65 @@ class APNewsScraper:
         """Scrapes data from each news article within the specified date range."""
         news_data = []
         while True:
-            titles=[]
-            descriptions=[]
-            dates=[]
-            save_paths=[]
-            article_elements = self.driver.find_elements(By.XPATH, '//div[@class="SearchResultsModule-results"]//div[@class="PageList-items-item"]/div[@class="PagePromo"]')
+            titles, descriptions, dates, save_paths = [], [], [], []
+            article_elements = self.driver.get_webelements(
+            "xpath://div[@class='SearchResultsModule-results']//div[@class='PageList-items-item']/div[@class='PagePromo']")
             for article_element in article_elements:
                 self.close_popup()
                 try:
-                    timestamp_element = article_element.find_element(By.CSS_SELECTOR, 'bsp-timestamp[data-timestamp]')
-                    date = self.convertToDate(int(timestamp_element.get_attribute('data-timestamp')))
-                    if self.start_date<=date<=self.end_date:
+                    timestamp_element = self.driver.find_element('tag:bsp-timestamp',article_element)
+                    date = self.convertToDate(self.driver.get_element_attribute(timestamp_element,'data-timestamp'))
+                    if self.start_date <= date <= self.end_date:
                         dates.append(date)
                     else:
                         continue
-                except:
-                    raise Exception('The date Reference could not be found. Please check the HTML anchors as webpage might have changed') 
-
-                try:
-                    title_element = article_element.find_element(By.CLASS_NAME, 'PagePromo-title')
-                    title_element=title_element.text
-                except:
-                    title_element='N/A'
-                finally:
-                    titles.append(title_element)
+                except Exception as e:
+                    print(f"Error processing date: {e}")
+                    raise
                 
                 try:
-                    description_element = article_element.find_element(By.CLASS_NAME, 'PagePromo-description')
-                    description_element=description_element.text
+                    title_element = self.driver.find_element('class:PagePromo-title',article_element)
+                    title=self.driver.get_text(title_element)
                 except:
-                    description_element='N/A'
+                    title='N/A'
                 finally:
-                    descriptions.append(description_element)
+                    titles.append(title)
+                
+                try:
+                    description_element = self.driver.find_element('class:PagePromo-description',article_element)
+                    description=self.driver.get_text(description_element)
+                except:
+                    description='N/A'
+                finally:
+                    descriptions.append(description)
 
                 try:
-                    image_element=article_element.find_element(By.CLASS_NAME, 'Image')
-                    imagePath = self.download_image(str(image_element.get_attribute("src")),save_folder)
+                    image_element = self.driver.find_element('class:Image',article_element)
+                    image_URL=self.driver.get_element_attribute(image_element,'src')
+                    imagePath = self.download_image(image_URL,save_folder)
                 except:
                     imagePath='N/A'
                 finally:
                     save_paths.append(imagePath)
             
-            for title, description, date, save_path in zip(titles, descriptions, dates,save_paths):
-                news_data.append({
-                    'title': title,
-                    'date': date,
-                    'description': description,
-                    'picture_filename': save_path,
-                    'search_phrase_count': self.count_search_phrase(title, description),
-                    'money_mention': self.detect_money(title, description)
-                })
-
-            next_page = self.driver.find_element(By.CLASS_NAME, 'Pagination-nextPage')
-            if len(dates)==0:
+            if not dates:
                 break
+
+            news_data.extend([{
+            'title': title,
+            'date': date,
+            'description': description,
+            'picture_filename': save_path,
+            'search_phrase_count': self.count_search_phrase(title, description),
+            'money_mention': self.detect_money(title, description)} for title, description, date, save_path in zip(titles, descriptions, dates, save_paths)])
+
+            next_page = self.driver.find_element('class:Pagination-nextPage')
+            if next_page:
+                self.driver.click_element(next_page)
+                time.sleep(10)
             else:
-                if next_page:
-                    next_page.click()
-                    time.sleep(10)
-                else:
-                    break 
+                break
+
         return news_data
 
     @staticmethod
@@ -313,8 +298,8 @@ class APNewsScraper:
         except Exception as e:
             logging.error(f"Failed to save data to Excel: {e}")
 
-if __name__ == "__main__":
-
+@task
+def runBot():
     DELTA = 1
     SEARCH_PHRASE = "OpenAI"
     CHROMEDRIVER_NAME = "chromedriver.exe"
