@@ -9,7 +9,7 @@ import os
 import shutil
 from robocorp.tasks import task
 import platform
-import chrome_version
+import subprocess
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -36,13 +36,19 @@ class APNewsScraper:
         self.output_path=self.createfileOutput() 
 
     @staticmethod
-    def gethromeVersion():
-        logging.info(f"Chrome Version is {chrome_version.get_chrome_version()}")
-        print(f"Chrome Version is {chrome_version.get_chrome_version()}")
+    def gethchromiumVersion():
+        try:
+            result = subprocess.run(['chromium-browser', '--product-version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output = result.stdout.decode('utf-8')
+            version = output.strip()
+            logging.info(f"Chromium Version is {str(version)}")
+        except Exception as e:
+            logging.info(f"Could not find Chromium Version : {str(e)}")
+
 
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
-        self.gethromeVersion()
+        self.gethchromiumVersion()
         os_name = platform.system().lower()
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
         chromeDriver_folder = os.path.join(script_dir, "SETUP")
