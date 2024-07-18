@@ -42,11 +42,13 @@ class APNewsScraper:
         if os_name == 'windows':
             chrome_win = os.path.join(chromeDriver_folder, "WIN")
             chrome_driver_path=os.path.join(chrome_win, "chromedriver.exe")
+            self.driver = Selenium()
+            self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
         else:
             chrome_linux = os.path.join(chromeDriver_folder, "LINUX")
             chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
-        self.driver = Selenium()
-        self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
+            self.driver = Selenium()
+            self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path, options={"binary_location": "/usr/bin/chromium"})
         return self
 
 
