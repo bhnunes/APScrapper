@@ -38,10 +38,11 @@ class APNewsScraper:
     @staticmethod
     def gethchromiumVersion():
         try:
-            result = subprocess.run(['chromium-browser', '--product-version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            output = result.stdout.decode('utf-8')
-            version = output.strip()
-            logging.info(f"Chromium Version is {str(version)}")
+            result = subprocess.run(['which', 'chromium'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result.returncode == 0:
+                logging.info(f"Chromium Version is {str(result.stdout.strip())}")
+            else:
+                logging.info(f"Failed to find Chromium: {str(result.stderr.strip())}")
         except Exception as e:
             logging.info(f"Could not find Chromium Version : {str(e)}")
 
