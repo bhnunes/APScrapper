@@ -8,6 +8,7 @@ from RPA.Browser.Selenium import Selenium
 import os
 import shutil
 from robocorp.tasks import task
+from webdriver_manager.chrome import ChromeDriverManager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -16,43 +17,35 @@ class APNewsScraper:
     """
     A class to scrape news articles from AP News website within a specified date range.
     """
-    def __init__(self, search_phrase, delta,chromedriver_name,base_url,fileName):
+    def __init__(self, search_phrase, delta,base_url,fileName):
         """
         Initializes the APNewsScraper with provided parameters.
 
         Args:
             search_phrase (str): The phrase to search for in AP News.
             delta (int): Number of months prior to current month as the start date.
-            chromedriver_path (str): Path to the ChromeDriver executable.
             base_url (str): Base URL of the AP News website.
             file_name (str): Name of the output Excel file.
         """
         self.search_phrase = search_phrase
         self.base_url = base_url
-        self.chromedriver_name=chromedriver_name
         self.fileName=fileName
-        self.driver = Selenium() 
+        self.driver = None
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput() 
 
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
-        self.driver.open_browser(browser="chrome", executable_path=self.setDriverpath())
+        chrome_driver_path = ChromeDriverManager().install()
+        self.driver = Selenium()
+        self.driver.open_browser(browser="chrome", executable_path=chrome_driver_path)
         return self
+
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Quits the ChromeDriver on exiting the context."""
         if self.driver:
             self.driver.close_browser()
-
-    def setDriverpath(self):
-        """Creates and returns the dynamic ChromeDriver Path"""
-        script_dir = os.path.dirname(os.path.abspath(__file__)) 
-        driverfolder = os.path.join(script_dir, "CONFIG")
-        driverPath=os.path.join(driverfolder, self.chromedriver_name)
-        if not os.path.exists(driverPath):
-            raise FileNotFoundError(f"No such file or directory: '{driverPath}'")
-        return driverPath
 
     def createFolderImages(self):
         """Creates and returns the output path for the downloaded images"""
@@ -302,8 +295,7 @@ class APNewsScraper:
 def runBot():
     DELTA = 1
     SEARCH_PHRASE = "OpenAI"
-    CHROMEDRIVER_NAME = "chromedriver.exe"
     BASE_URL = "https://apnews.com"
     FILE_NAME="ap_news_data.xlsx"
-    with APNewsScraper(SEARCH_PHRASE, DELTA, CHROMEDRIVER_NAME,BASE_URL,FILE_NAME) as scraper:
+    with APNewsScraper(SEARCH_PHRASE, DELTA, BASE_URL, FILE_NAME) as scraper:
         scraper.run()
