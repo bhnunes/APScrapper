@@ -54,6 +54,7 @@ class APNewsScraper:
             options.add_argument("--disable-gpu")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--start-maximized")
             self.driver = Selenium()
             self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path, options=options)
         return self
