@@ -162,6 +162,14 @@ class APNewsScraper:
         except:
             logging.info("No pop-up found.")
 
+        try:
+            self.driver.wait_until_element_is_visible("css:.onetrust-pc-dark-filter", timeout=1)
+            self.driver.click_element("css:.onetrust-pc-dark-filter")
+            time.sleep(1)
+            logging.info("Button closed.")
+        except:
+            logging.info("Button not found.")
+
     
     def search_news(self):
         """Enters the search phrase and waits for the results to load."""
