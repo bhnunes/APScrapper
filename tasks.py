@@ -8,7 +8,7 @@ from RPA.Browser.Selenium import Selenium
 import os
 import shutil
 from robocorp.tasks import task
-from webdriver_manager.chrome import ChromeDriverManager
+import platform
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -36,9 +36,17 @@ class APNewsScraper:
 
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
-        chrome_driver_path = ChromeDriverManager().install()
+        os_name = platform.system().lower()
+        script_dir = os.path.dirname(os.path.abspath(__file__)) 
+        chromeDriver_folder = os.path.join(script_dir, "SETUP")
+        if os_name == 'windows':
+            chrome_win = os.path.join(chromeDriver_folder, "WIN")
+            chrome_driver_path=os.path.join(chrome_win, "chromedriver.exe")
+        else:
+            chrome_linux = os.path.join(chromeDriver_folder, "LINUX")
+            chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
         self.driver = Selenium()
-        self.driver.open_browser(browser="chrome", executable_path=chrome_driver_path)
+        self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
         return self
 
 
