@@ -35,22 +35,8 @@ class APNewsScraper:
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput() 
 
-    @staticmethod
-    def gethchromiumVersion():
-        try:
-            chromium_executable_path = "/usr/bin/chromium"
-            result = subprocess.run([chromium_executable_path, '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            if result.returncode == 0:
-                logging.info(f"Chromium Version is {str(result.stdout.strip())}")
-            else:
-                logging.info(f"Failed to find Chromium: {str(result.stderr.strip())}")
-        except Exception as e:
-            logging.info(f"Could not find Chromium Version : {str(e)}")
-
-
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
-        self.gethchromiumVersion()
         os_name = platform.system().lower()
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
         chromeDriver_folder = os.path.join(script_dir, "SETUP")
