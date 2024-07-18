@@ -44,7 +44,8 @@ class APNewsScraper:
             chrome_win = os.path.join(chromeDriver_folder, "WIN")
             chrome_driver_path=os.path.join(chrome_win, "chromedriver.exe")
             self.driver = Selenium()
-            self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
+            #self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
+            self.driver.open_browser(browser="chrome",executable_path=chrome_driver_path)
         else:
             chrome_linux = os.path.join(chromeDriver_folder, "LINUX")
             chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
@@ -136,7 +137,7 @@ class APNewsScraper:
                 logging.info(f"An error occurred: {e}")
                 self.close_popup()
                 retry=retry+1
-        logging.error(f"An Irreversible error occurred: {e}")
+        logging.error(f"An Irreversible error occurred!")
         raise
 
 
@@ -164,17 +165,20 @@ class APNewsScraper:
     def search_news(self):
         """Enters the search phrase and waits for the results to load."""
         try:
-            self.driver.wait_until_element_is_visible("class:SearchOverlay-search-button", timeout=10)
-            self.close_popup()
-            self.driver.click_element("class:SearchOverlay-search-button")
-            self.close_popup()
-            self.driver.wait_until_element_is_visible("class:SearchOverlay-search-input", timeout=10)
-            self.close_popup()
-            self.driver.click_element("class:SearchOverlay-search-input")
-            self.close_popup()
-            self.driver.input_text("class:SearchOverlay-search-input", self.search_phrase)
-            self.close_popup()
-            self.driver.press_keys("class:SearchOverlay-search-input", "ENTER")
+            # self.driver.wait_until_element_is_visible("class:SearchOverlay-search-button", timeout=10)
+            # self.close_popup()
+            # self.driver.click_element("class:SearchOverlay-search-button")
+            # self.close_popup()
+            # self.driver.wait_until_element_is_visible("class:SearchOverlay-search-input", timeout=10)
+            # self.close_popup()
+            # self.driver.click_element("class:SearchOverlay-search-input")
+            # self.close_popup()
+            # self.driver.input_text("class:SearchOverlay-search-input", self.search_phrase)
+            # self.close_popup()
+            # self.driver.press_keys("class:SearchOverlay-search-input", "ENTER")
+            adjusted_search=str(self.search_phrase)
+            new_url=str(self.base_url)+"/search?q="+adjusted_search.replace(" ","+")
+            self.driver.go_to(new_url)
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
             self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=10)
             if self.driver.get_element_count("class:SearchResultsModule-count-desktop") == 0:
@@ -188,7 +192,8 @@ class APNewsScraper:
         """Orders the search results by newest articles."""
         try:
             currentURL=self.driver.get_location()
-            newestURL=currentURL.replace("#nt=navsearch","&s=3")
+            newestURL=currentURL+"&s=3"
+            #newestURL=currentURL.replace("#nt=navsearch","&s=3")
             self.driver.go_to(newestURL)
             logging.info("Ordered by Newest Articles.")
         except Exception as e:
@@ -319,7 +324,7 @@ class APNewsScraper:
 def runBot():
     DELTA = 1
     SEARCH_PHRASE = "OpenAI"
-    BASE_URL = "https://apnews.com"
+    BASE_URL = "https://www.apnews.com"
     FILE_NAME="ap_news_data.xlsx"
     with APNewsScraper(SEARCH_PHRASE, DELTA, BASE_URL, FILE_NAME) as scraper:
         scraper.run()
