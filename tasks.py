@@ -9,6 +9,7 @@ import os
 import shutil
 from robocorp.tasks import task
 import platform
+import chrome_version
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -34,8 +35,14 @@ class APNewsScraper:
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput() 
 
+    @staticmethod
+    def gethromeVersion():
+        logging.info(f"Chrome Version is {chrome_version.get_chrome_version()}")
+        print(f"Chrome Version is {chrome_version.get_chrome_version()}")
+
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
+        self.gethromeVersion()
         os_name = platform.system().lower()
         script_dir = os.path.dirname(os.path.abspath(__file__)) 
         chromeDriver_folder = os.path.join(script_dir, "SETUP")
