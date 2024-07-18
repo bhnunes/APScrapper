@@ -116,21 +116,27 @@ class APNewsScraper:
 
     def run(self):
         """Main method to execute the scraping process."""
-        try:
-            save_folder=self.createFolderImages()
-            self.load_website()
-            self.close_popup()
-            self.search_news()
-            self.close_popup()
-            self.orderPageFromNewest()
-            self.close_popup()
-            news_data = self.scrape_news_articles(save_folder)
-            self.close_popup()
-            self.save_to_excel(news_data)
-            logging.info("Scrapper Robot ran successfully")
-
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
+        retry=0
+        while retry<3:
+            try:
+                save_folder=self.createFolderImages()
+                self.load_website()
+                self.close_popup()
+                self.search_news()
+                self.close_popup()
+                self.orderPageFromNewest()
+                self.close_popup()
+                news_data = self.scrape_news_articles(save_folder)
+                self.close_popup()
+                self.save_to_excel(news_data)
+                logging.info("Scrapper Robot ran successfully")
+                return self
+            except Exception as e:
+                logging.info(f"An error occurred: {e}")
+                self.close_popup()
+                retry=retry+1
+        logging.error(f"An Irreversible error occurred: {e}")
+        raise
 
 
     def load_website(self):
