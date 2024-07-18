@@ -50,6 +50,10 @@ class APNewsScraper:
             chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
             options = Options()
             options.binary_location = "/usr/bin/chromium"
+            options.add_argument("--headless")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
             self.driver = Selenium()
             self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path, options=options)
         return self
