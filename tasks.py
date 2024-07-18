@@ -34,7 +34,7 @@ class APNewsScraper:
         self.driver = None
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput()
-        self.sleepTime=int(30) 
+        self.sleepTime=int(10) 
 
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
@@ -45,8 +45,8 @@ class APNewsScraper:
             chrome_win = os.path.join(chromeDriver_folder, "WIN")
             chrome_driver_path=os.path.join(chrome_win, "chromedriver.exe")
             self.driver = Selenium()
-            #self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
-            self.driver.open_browser(browser="chrome",executable_path=chrome_driver_path)
+            self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
+            #self.driver.open_browser(browser="chrome",executable_path=chrome_driver_path)
         else:
             chrome_linux = os.path.join(chromeDriver_folder, "LINUX")
             chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
@@ -181,9 +181,9 @@ class APNewsScraper:
             new_url=str(self.base_url)+"/search?q="+adjusted_search.replace(" ","+")
             self.driver.go_to(new_url)
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
-            self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=self.sleepTime)
-            if self.driver.get_element_count("class:SearchResultsModule-count-desktop") == 0:
-                raise Exception('Search Returned empty')    
+            # self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=self.sleepTime)
+            # if self.driver.get_element_count("class:SearchResultsModule-count-desktop") == 0:
+            #     raise Exception('Search Returned empty')    
 
         except Exception as e:
             logging.error(f"Failed to search for news: {e}")
@@ -216,6 +216,7 @@ class APNewsScraper:
         news_data = []
         while True:
             titles, descriptions, dates, save_paths = [], [], [], []
+            self.driver.wait_until_element_is_visible("xpath://div[@class='SearchResultsModule-results']", timeout=self.sleepTime)
             article_elements = self.driver.get_webelements(
             "xpath://div[@class='SearchResultsModule-results']//div[@class='PageList-items-item']/div[@class='PagePromo']")
             for article_element in article_elements:
