@@ -33,7 +33,8 @@ class APNewsScraper:
         self.fileName=fileName
         self.driver = None
         self.start_date, self.end_date =self.calcDates(delta)
-        self.output_path=self.createfileOutput() 
+        self.output_path=self.createfileOutput()
+        self.sleepTime=int(30) 
 
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
@@ -180,7 +181,7 @@ class APNewsScraper:
             new_url=str(self.base_url)+"/search?q="+adjusted_search.replace(" ","+")
             self.driver.go_to(new_url)
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
-            self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=10)
+            self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=self.sleepTime)
             if self.driver.get_element_count("class:SearchResultsModule-count-desktop") == 0:
                 raise Exception('Search Returned empty')    
 
@@ -269,7 +270,7 @@ class APNewsScraper:
             next_page = self.driver.find_element('class:Pagination-nextPage')
             if next_page:
                 self.driver.click_element(next_page)
-                time.sleep(10)
+                time.sleep(self.sleepTime)
             else:
                 break
 
