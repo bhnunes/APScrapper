@@ -38,7 +38,8 @@ class APNewsScraper:
     @staticmethod
     def gethchromiumVersion():
         try:
-            result = subprocess.run(['which', 'chromium'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            chromium_executable_path = "/usr/bin/chromium"
+            result = subprocess.run([chromium_executable_path, '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if result.returncode == 0:
                 logging.info(f"Chromium Version is {str(result.stdout.strip())}")
             else:
