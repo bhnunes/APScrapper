@@ -9,7 +9,6 @@ import os
 import shutil
 from robocorp.tasks import task
 import platform
-import subprocess
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
