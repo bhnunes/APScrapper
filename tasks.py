@@ -9,6 +9,7 @@ import os
 import shutil
 from robocorp.tasks import task
 import platform
+from selenium.webdriver.chrome.options import Options
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -47,8 +48,9 @@ class APNewsScraper:
         else:
             chrome_linux = os.path.join(chromeDriver_folder, "LINUX")
             chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
+            options = Options()
+            options.binary_location = "/usr/bin/chromium"
             self.driver = Selenium()
-            options = {"binary_location": "/usr/bin/chromium"}
             self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path, options=options)
         return self
 
