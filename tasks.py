@@ -74,8 +74,9 @@ class APNewsScraper:
 
     def createFolderImages(self):
         """Creates and returns the output path for the downloaded images"""
-        script_dir = os.path.dirname(os.path.abspath(__file__)) 
-        save_folder = os.path.join(script_dir, "IMAGES")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        save_folder = os.path.join(script_dir, "output") 
+        save_folder = os.path.join(save_folder, "IMAGES")
         if os.path.exists(save_folder):
             shutil.rmtree(save_folder)
             os.makedirs(save_folder)
