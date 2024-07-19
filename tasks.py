@@ -125,6 +125,7 @@ class APNewsScraper:
     def run(self):
         """Main method to execute the scraping process."""
         retry=0
+        error=""
         while retry<3:
             try:
                 save_folder=self.createFolderImages()
@@ -143,8 +144,9 @@ class APNewsScraper:
                 logging.info(f"An error occurred: {e}")
                 self.close_popup()
                 retry=retry+1
+                error=str(e)
         logging.error(f"An Irreversible error occurred!")
-        raise
+        raise Exception(f"An Irreversible error occurred! - {error}")
 
 
     def load_website(self):
