@@ -12,7 +12,7 @@ from robocorp import workitems
 import platform
 from selenium.webdriver.chrome.options import Options
 from dotenv import load_dotenv
-import json
+import zipfile
 
 load_dotenv()
 
@@ -75,14 +75,15 @@ class APNewsScraper:
     def createFolderImages(self):
         """Creates and returns the output path for the downloaded images"""
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_folder = os.path.join(script_dir, "output") 
-        save_folder = os.path.join(save_folder, "IMAGES")
-        if os.path.exists(save_folder):
-            shutil.rmtree(save_folder)
-            os.makedirs(save_folder)
+        save_folder = os.path.join(script_dir, "output")
+        zipFilePath=os.path.join(save_folder, "output_images.zip")
+        save_folder_images = os.path.join(save_folder, "IMAGES")
+        if os.path.exists(save_folder_images):
+            shutil.rmtree(save_folder_images)
+            os.makedirs(save_folder_images)
         else:
-            os.makedirs(save_folder)
-        return save_folder
+            os.makedirs(save_folder_images)
+        return save_folder_images, zipFilePath
     
     def createfileOutput(self):
         """Creates and returns the output path for the Excel file."""
@@ -129,16 +130,17 @@ class APNewsScraper:
         error=""
         while retry<3:
             try:
-                save_folder=self.createFolderImages()
+                save_folder_images, zipFilePath = self.createFolderImages()
                 self.load_website()
                 self.close_popup()
                 self.search_news()
                 self.close_popup()
                 self.orderPageFromNewest()
                 self.close_popup()
-                news_data = self.scrape_news_articles(save_folder)
+                news_data = self.scrape_news_articles(save_folder_images)
                 self.close_popup()
                 self.save_to_excel(news_data)
+                self.zipFileImages(save_folder_images,zipFilePath)
                 logging.info("Scrapper Robot ran successfully")
                 return self
             except Exception as e:
@@ -211,7 +213,7 @@ class APNewsScraper:
         return formatted_date
 
 
-    def scrape_news_articles(self,save_folder):
+    def scrape_news_articles(self,save_folder_images):
         """Scrapes data from each news article within the specified date range."""
         news_data = []
         while True:
@@ -251,7 +253,7 @@ class APNewsScraper:
                 try:
                     image_element = self.driver.find_element('class:Image',article_element)
                     image_URL=self.driver.get_element_attribute(image_element,'src')
-                    imagePath = self.download_image(image_URL,save_folder)
+                    imagePath = self.download_image(image_URL,save_folder_images)
                 except:
                     imagePath='N/A'
                 finally:
@@ -321,6 +323,23 @@ class APNewsScraper:
             logging.info(f"Data saved to Excel file: {self.output_path}")
         except Exception as e:
             logging.error(f"Failed to save data to Excel: {e}")
+            raise
+    
+    def zipFileImages(self,save_folder,zipFilePath):
+        try:
+            zipf = zipfile.ZipFile(zipFilePath, 'w', zipfile.ZIP_DEFLATED)
+            for root, dirs, files in os.walk(save_folder):
+                for filename in files:
+                    actual_file_path = os.path.join(root, filename)
+                    zipped_file_path = os.path.relpath(actual_file_path, save_folder)
+                    zipf.write(actual_file_path, zipped_file_path)
+            zipf.close()
+            shutil.rmtree(save_folder)
+            logging.info(f"create ZIP with images on {zipFilePath}")
+        except Exception as e:
+            logging.error(f"Failed to create ZIP with images: {e}")
+            raise
+
 
 @task
 def runBot():
