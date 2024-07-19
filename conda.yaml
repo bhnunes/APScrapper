@@ -13,4 +13,5 @@ dependencies:
     - rpaframework==28.5.1        # https://rpaframework.org/releasenotes.html
     - robocorp==2.0.1             # https://pypi.org/project/robocorp
     - requests==2.31.0            # https://pypi.org/project/requests
-    - openpyxl==3.1.5
+    - openpyxl==3.1.5             # https://pypi.org/project/openpyxl/
+    - python-dotenv==1.0.1        # ttps://pypi.org/project/python-dotenv/

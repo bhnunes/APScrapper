@@ -8,8 +8,13 @@ from RPA.Browser.Selenium import Selenium
 import os
 import shutil
 from robocorp.tasks import task
+from robocorp import workitems
 import platform
 from selenium.webdriver.chrome.options import Options
+from dotenv import load_dotenv
+import json
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -18,7 +23,7 @@ class APNewsScraper:
     """
     A class to scrape news articles from AP News website within a specified date range.
     """
-    def __init__(self, search_phrase, delta,base_url,fileName):
+    def __init__(self, search_phrase, delta,base_url,fileName, LinuxChromiumPath):
         """
         Initializes the APNewsScraper with provided parameters.
 
@@ -34,7 +39,8 @@ class APNewsScraper:
         self.driver = None
         self.start_date, self.end_date =self.calcDates(delta)
         self.output_path=self.createfileOutput()
-        self.sleepTime=int(10) 
+        self.sleepTime=int(10)
+        self.LinuxChromiumPath=LinuxChromiumPath 
 
     def __enter__(self):
         """Initializes the ChromeDriver on entering the context."""
@@ -46,12 +52,11 @@ class APNewsScraper:
             chrome_driver_path=os.path.join(chrome_win, "chromedriver.exe")
             self.driver = Selenium()
             self.driver.open_browser(browser="headlesschrome",executable_path=chrome_driver_path)
-            #self.driver.open_browser(browser="chrome",executable_path=chrome_driver_path)
         else:
             chrome_linux = os.path.join(chromeDriver_folder, "LINUX")
             chrome_driver_path = os.path.join(chrome_linux, "chromedriver")
             options = Options()
-            options.binary_location = "/usr/bin/chromium"
+            options.binary_location = self.LinuxChromiumPath
             options.add_argument("--headless")
             options.add_argument("--disable-gpu")
             options.add_argument("--no-sandbox")
@@ -174,25 +179,10 @@ class APNewsScraper:
     def search_news(self):
         """Enters the search phrase and waits for the results to load."""
         try:
-            # self.driver.wait_until_element_is_visible("class:SearchOverlay-search-button", timeout=10)
-            # self.close_popup()
-            # self.driver.click_element("class:SearchOverlay-search-button")
-            # self.close_popup()
-            # self.driver.wait_until_element_is_visible("class:SearchOverlay-search-input", timeout=10)
-            # self.close_popup()
-            # self.driver.click_element("class:SearchOverlay-search-input")
-            # self.close_popup()
-            # self.driver.input_text("class:SearchOverlay-search-input", self.search_phrase)
-            # self.close_popup()
-            # self.driver.press_keys("class:SearchOverlay-search-input", "ENTER")
             adjusted_search=str(self.search_phrase)
             new_url=str(self.base_url)+"/search?q="+adjusted_search.replace(" ","+")
             self.driver.go_to(new_url)
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
-            # self.driver.wait_until_element_is_visible("class:SearchResultsModule-count-desktop", timeout=self.sleepTime)
-            # if self.driver.get_element_count("class:SearchResultsModule-count-desktop") == 0:
-            #     raise Exception('Search Returned empty')    
-
         except Exception as e:
             logging.error(f"Failed to search for news: {e}")
             raise
@@ -202,7 +192,6 @@ class APNewsScraper:
         try:
             currentURL=self.driver.get_location()
             newestURL=currentURL+"&s=3"
-            #newestURL=currentURL.replace("#nt=navsearch","&s=3")
             self.driver.go_to(newestURL)
             logging.info("Ordered by Newest Articles.")
         except Exception as e:
@@ -332,9 +321,29 @@ class APNewsScraper:
 
 @task
 def runBot():
-    DELTA = 1
-    SEARCH_PHRASE = "OpenAI"
-    BASE_URL = "https://www.apnews.com"
-    FILE_NAME="ap_news_data.xlsx"
-    with APNewsScraper(SEARCH_PHRASE, DELTA, BASE_URL, FILE_NAME) as scraper:
-        scraper.run()
+
+    LinuxChromiumPath=str(os.getenv("LINUX_CHROMIUM_PATH"))
+    outputFileName=str(os.getenv("OUTPUT_FILE_NAME"))
+    baseUrl = str(os.getenv("BASE_URL"))
+
+    if int(os.getenv("IS_PROD"))!=1:
+        delta = 1
+        search_phrase = "OpenAI"
+        try:
+            print(f"Processing Workitem: {delta}, {search_phrase}")
+            with APNewsScraper(search_phrase, delta, baseUrl, outputFileName, LinuxChromiumPath) as scraper:
+                scraper.run()
+        except Exception as err:
+            raise Exception(f"Robot Failed - {err}")
+
+    else:
+        for item in workitems.inputs:
+            try:
+                delta = item.payload["DELTA"]
+                search_phrase = item.payload["SEARCH_PHRASE"]
+                print(f"Processing Workitem: {delta}, {search_phrase}")
+                with APNewsScraper(search_phrase, delta, baseUrl, outputFileName, LinuxChromiumPath) as scraper:
+                    scraper.run()
+                item.done()
+            except Exception as err:
+                item.fail("BUSINESS", code="INVALID_STEP", message=str(err))
