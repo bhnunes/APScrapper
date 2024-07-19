@@ -163,8 +163,8 @@ class APNewsScraper:
             logging.info("No pop-up found.")
 
         try:
-            self.driver.wait_until_element_is_visible("css:.onetrust-pc-dark-filter #onetrust-accept-btn-handler", timeout=1)
-            self.driver.click_element("css:.onetrust-pc-dark-filter #onetrust-accept-btn-handler")
+            self.driver.wait_until_element_is_visible("xpath://div[@id='onetrust-close-btn-container']/button", timeout=1)
+            self.driver.click_element("xpath://div[@id='onetrust-close-btn-container']/button")
             time.sleep(1)
             logging.info("Button closed.")
         except:
