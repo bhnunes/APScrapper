@@ -1,18 +1,24 @@
 import logging
-import re
 import time
-from datetime import datetime, date
-import openpyxl
-import requests
 from RPA.Browser.Selenium import Selenium
 import os
-import shutil
 from robocorp.tasks import task
 from robocorp import workitems
 import platform
 from selenium.webdriver.chrome.options import Options
 from dotenv import load_dotenv
-import zipfile
+
+from utils import (
+    Create_Folder_Images,
+    Create_File_Output,
+    Calculate_Dates,
+    Convert_Timestamp_To_Date,
+    Download_Image, 
+    Detect_Money, 
+    Count_Search_Phrase,
+    Create_Zip_File_With_Images, 
+    Save_Search_To_Excel
+)
 
 load_dotenv()
 
@@ -37,8 +43,8 @@ class APNewsScraper:
         self.base_url = base_url
         self.fileName=fileName
         self.driver = None
-        self.start_date, self.end_date =self.calcDates(delta)
-        self.output_path=self.createfileOutput()
+        self.start_date, self.end_date =Calculate_Dates(delta)
+        self.output_path=Create_File_Output(self.fileName)
         self.sleepTime=int(10)
         self.LinuxChromiumPath=LinuxChromiumPath 
 
@@ -72,57 +78,6 @@ class APNewsScraper:
         if self.driver:
             self.driver.close_browser()
 
-    def createFolderImages(self):
-        """Creates and returns the output path for the downloaded images"""
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        save_folder = os.path.join(script_dir, "output")
-        zipFilePath=os.path.join(save_folder, "output_images.zip")
-        save_folder_images = os.path.join(save_folder, "IMAGES")
-        if os.path.exists(save_folder_images):
-            shutil.rmtree(save_folder_images)
-            os.makedirs(save_folder_images)
-        else:
-            os.makedirs(save_folder_images)
-        return save_folder_images, zipFilePath
-    
-    def createfileOutput(self):
-        """Creates and returns the output path for the Excel file."""
-        script_dir = os.path.dirname(os.path.abspath(__file__)) 
-        output_folder = os.path.join(script_dir, "output")
-        output_path = os.path.join(output_folder, self.fileName)
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        return output_path
-    
-    @staticmethod
-    def calcDates(delta):
-        """Calculates the start and end dates based on the given delta."""
-        delta=int(delta)
-        now = datetime.now()
-        current_year = int(now.year)
-        current_month = int(now.month)
-        if delta==0 or delta==1:
-            year=current_year
-            month=current_month
-        else:
-            delta=delta-1
-            difference=current_month-delta
-            if difference>0:
-                month=difference
-                year=current_year
-            else:
-                residual=delta%12
-                quotient=delta//12
-                month=current_month-residual
-                if month<0:
-                    month=12-month
-                year=current_year-quotient
-        d=date(year, month, 1)
-        start_date = d.strftime("%m/%d/%Y")
-        today = datetime.today()
-        end_date = today.strftime("%m/%d/%Y")
-        return start_date, end_date
-        
 
     def run(self):
         """Main method to execute the scraping process."""
@@ -130,7 +85,7 @@ class APNewsScraper:
         error=""
         while retry<3:
             try:
-                save_folder_images, zipFilePath = self.createFolderImages()
+                save_folder_images, zipFilePath = Create_Folder_Images()
                 self.load_website()
                 self.close_popup()
                 self.search_news()
@@ -139,8 +94,8 @@ class APNewsScraper:
                 self.close_popup()
                 news_data = self.scrape_news_articles(save_folder_images)
                 self.close_popup()
-                self.save_to_excel(news_data)
-                self.zipFileImages(save_folder_images,zipFilePath)
+                Save_Search_To_Excel(news_data,self.output_path)
+                Create_Zip_File_With_Images(save_folder_images,zipFilePath)
                 logging.info("Scrapper Robot ran successfully")
                 return self
             except Exception as e:
@@ -159,7 +114,7 @@ class APNewsScraper:
             logging.info(f"Website loaded successfully: {self.base_url}")
         except Exception as e:
             logging.error(f"Failed to load website: {e}")
-            raise
+            raise Exception(f"Failed to load website. Error: {e}")
 
 
     def close_popup(self):
@@ -167,18 +122,18 @@ class APNewsScraper:
         try:
             self.driver.wait_until_element_is_visible("class:fancybox-close", timeout=1)
             self.driver.click_element("class:fancybox-close")
-            time.sleep(1)
-            logging.info("Pop-up closed.")
+            self.driver.wait_until_element_is_not_visible("class:fancybox-close", timeout=1)
+            logging.info("ADD Pop-up closed.")
         except:
-            logging.info("No pop-up found.")
+            pass
 
         try:
             self.driver.wait_until_element_is_visible("xpath://*[@id='onetrust-accept-btn-handler']", timeout=1)
             self.driver.click_element("xpath://*[@id='onetrust-accept-btn-handler']")
-            time.sleep(1)
-            logging.info("Button closed.")
+            self.driver.wait_until_element_is_not_visible("xpath://*[@id='onetrust-accept-btn-handler']", timeout=1)
+            logging.info("GDPR Button closed.")
         except:
-            logging.info("Button not found.")
+            pass
 
     
     def search_news(self):
@@ -190,7 +145,7 @@ class APNewsScraper:
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
         except Exception as e:
             logging.error(f"Failed to search for news: {e}")
-            raise
+            raise Exception(f"Failed to search for news. Error : {e}")
 
     def orderPageFromNewest(self):
         """Orders the search results by newest articles."""
@@ -201,16 +156,7 @@ class APNewsScraper:
             logging.info("Ordered by Newest Articles.")
         except Exception as e:
             logging.error(f"Failed to load website by Newest Articles: {e}")
-            raise
-
-    @staticmethod
-    def convertToDate(timestamp_ms):
-        """Converts a timestamp in milliseconds to a formatted date string."""
-        timestamp_ms=int(timestamp_ms)
-        timestamp_s = timestamp_ms / 1000
-        dt_object = datetime.fromtimestamp(timestamp_s)
-        formatted_date = dt_object.strftime("%m/%d/%Y")
-        return formatted_date
+            raise Exception(f"Failed to load website by Newest Articles. Error: {e}")
 
 
     def scrape_news_articles(self,save_folder_images):
@@ -218,21 +164,29 @@ class APNewsScraper:
         news_data = []
         while True:
             titles, descriptions, dates, save_paths = [], [], [], []
-            self.driver.wait_until_element_is_visible("xpath://div[@class='SearchResultsModule-results']", timeout=self.sleepTime)
+            timeToSleep=self.sleepTime
+            retry=True
+            countRetries=1
+            while retry==True and countRetries<3:
+                try:
+                    self.driver.wait_until_element_is_visible("xpath://div[@class='SearchResultsModule-results']", timeout=timeToSleep)
+                    retry=False
+                except:
+                    timeToSleep=self.sleepTime+10
+                    countRetries=countRetries+1
             article_elements = self.driver.get_webelements(
             "xpath://div[@class='SearchResultsModule-results']//div[@class='PageList-items-item']/div[@class='PagePromo']")
             for article_element in article_elements:
                 self.close_popup()
                 try:
                     timestamp_element = self.driver.find_element('tag:bsp-timestamp',article_element)
-                    date = self.convertToDate(self.driver.get_element_attribute(timestamp_element,'data-timestamp'))
+                    date = Convert_Timestamp_To_Date(self.driver.get_element_attribute(timestamp_element,'data-timestamp'))
                     if self.start_date <= date <= self.end_date:
                         dates.append(date)
                     else:
                         continue
                 except Exception as e:
-                    print(f"Error processing date: {e}")
-                    raise
+                    continue
                 
                 try:
                     title_element = self.driver.find_element('class:PagePromo-title',article_element)
@@ -253,7 +207,7 @@ class APNewsScraper:
                 try:
                     image_element = self.driver.find_element('class:Image',article_element)
                     image_URL=self.driver.get_element_attribute(image_element,'src')
-                    imagePath = self.download_image(image_URL,save_folder_images)
+                    imagePath = Download_Image(image_URL,save_folder_images)
                 except:
                     imagePath='N/A'
                 finally:
@@ -267,78 +221,17 @@ class APNewsScraper:
             'date': date,
             'description': description,
             'picture_filename': save_path,
-            'search_phrase_count': self.count_search_phrase(title, description),
-            'money_mention': self.detect_money(title, description)} for title, description, date, save_path in zip(titles, descriptions, dates, save_paths)])
+            'search_phrase_count': Count_Search_Phrase(self.search_phrase,title, description),
+            'money_mention': Detect_Money(title, description)} for title, description, date, save_path in zip(titles, descriptions, dates, save_paths)])
 
             next_page = self.driver.find_element('class:Pagination-nextPage')
             if next_page:
                 self.driver.click_element(next_page)
-                time.sleep(self.sleepTime)
+                self.driver.wait_for_condition('return document.readyState == "complete"',self.sleepTime)
             else:
                 break
 
         return news_data
-
-    @staticmethod
-    def download_image(image_url,save_folder):
-        """Downloads the image and saves it to an IMAGES folder in the script's directory."""
-        try:
-            response = requests.get(image_url)
-            response.raise_for_status()
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"image_{timestamp}.jpg"
-            save_path = os.path.join(save_folder, filename)
-
-            with open(save_path, 'wb') as f:
-                f.write(response.content)
-            logging.info(f"Image downloaded successfully: {save_path}")
-            return save_path 
-
-        except Exception as e:
-            logging.error(f"Failed to download image: {e}")
-            return "N/A"
-
-    def count_search_phrase(self, title, description):
-        """Counts the occurrences of the search phrase in the title and description."""
-        return title.lower().count(self.search_phrase.lower()) + description.lower().count(self.search_phrase.lower())
-
-    @staticmethod
-    def detect_money(title, description):
-        """Detects the presence of monetary values in the text."""
-        text = f"{title} {description}"
-        money_pattern = r"\$\d+[\.,]?\d*|\d+[\.,]?\d*\s*(?:dollars|USD)"
-        return bool(re.search(money_pattern, text))
-
-    def save_to_excel(self, news_data):
-        """Saves the scraped data to an Excel file."""
-
-        try:
-            wb = openpyxl.Workbook()
-            sheet = wb.active
-            sheet.append(['Title', 'Date', 'Description', 'Picture Filename', 'Search Phrase Count', 'Money Mention'])
-            for data in news_data:
-                sheet.append([data['title'], data['date'], data['description'], data['picture_filename'],
-                             data['search_phrase_count'], data['money_mention']])
-            wb.save(self.output_path)
-            logging.info(f"Data saved to Excel file: {self.output_path}")
-        except Exception as e:
-            logging.error(f"Failed to save data to Excel: {e}")
-            raise
-    
-    def zipFileImages(self,save_folder,zipFilePath):
-        try:
-            zipf = zipfile.ZipFile(zipFilePath, 'w', zipfile.ZIP_DEFLATED)
-            for root, dirs, files in os.walk(save_folder):
-                for filename in files:
-                    actual_file_path = os.path.join(root, filename)
-                    zipped_file_path = os.path.relpath(actual_file_path, save_folder)
-                    zipf.write(actual_file_path, zipped_file_path)
-            zipf.close()
-            shutil.rmtree(save_folder)
-            logging.info(f"create ZIP with images on {zipFilePath}")
-        except Exception as e:
-            logging.error(f"Failed to create ZIP with images: {e}")
-            raise
 
 
 @task
@@ -350,7 +243,7 @@ def runBot():
 
     if int(os.getenv("IS_PROD"))!=1:
         delta = 1
-        search_phrase = "OpenAI"
+        search_phrase = "openai"
         try:
             print(f"Processing Workitem: {delta}, {search_phrase}")
             with APNewsScraper(search_phrase, delta, baseUrl, outputFileName, LinuxChromiumPath) as scraper:
