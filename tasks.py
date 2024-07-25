@@ -114,7 +114,7 @@ class APNewsScraper:
             logging.info(f"Website loaded successfully: {self.base_url}")
         except Exception as e:
             logging.error(f"Failed to load website: {e}")
-            raise
+            raise Exception(f"Failed to load website. Error: {e}")
 
 
     def close_popup(self):
@@ -122,18 +122,18 @@ class APNewsScraper:
         try:
             self.driver.wait_until_element_is_visible("class:fancybox-close", timeout=1)
             self.driver.click_element("class:fancybox-close")
-            time.sleep(1)
-            logging.info("Pop-up closed.")
+            self.driver.wait_until_element_is_not_visible("class:fancybox-close", timeout=1)
+            logging.info("ADD Pop-up closed.")
         except:
-            logging.info("No pop-up found.")
+            pass
 
         try:
             self.driver.wait_until_element_is_visible("xpath://*[@id='onetrust-accept-btn-handler']", timeout=1)
             self.driver.click_element("xpath://*[@id='onetrust-accept-btn-handler']")
-            time.sleep(1)
-            logging.info("Button closed.")
+            self.driver.wait_until_element_is_not_visible("xpath://*[@id='onetrust-accept-btn-handler']", timeout=1)
+            logging.info("GDPR Button closed.")
         except:
-            logging.info("Button not found.")
+            pass
 
     
     def search_news(self):
@@ -145,7 +145,7 @@ class APNewsScraper:
             logging.info(f"Search initiated for phrase: {self.search_phrase}")
         except Exception as e:
             logging.error(f"Failed to search for news: {e}")
-            raise
+            raise Exception(f"Failed to search for news. Error : {e}")
 
     def orderPageFromNewest(self):
         """Orders the search results by newest articles."""
@@ -156,7 +156,7 @@ class APNewsScraper:
             logging.info("Ordered by Newest Articles.")
         except Exception as e:
             logging.error(f"Failed to load website by Newest Articles: {e}")
-            raise
+            raise Exception(f"Failed to load website by Newest Articles. Error: {e}")
 
 
     def scrape_news_articles(self,save_folder_images):
@@ -164,7 +164,16 @@ class APNewsScraper:
         news_data = []
         while True:
             titles, descriptions, dates, save_paths = [], [], [], []
-            self.driver.wait_until_element_is_visible("xpath://div[@class='SearchResultsModule-results']", timeout=self.sleepTime)
+            timeToSleep=self.sleepTime
+            retry=True
+            countRetries=1
+            while retry==True and countRetries<3:
+                try:
+                    self.driver.wait_until_element_is_visible("xpath://div[@class='SearchResultsModule-results']", timeout=timeToSleep)
+                    retry=False
+                except:
+                    timeToSleep=self.sleepTime+10
+                    countRetries=countRetries+1
             article_elements = self.driver.get_webelements(
             "xpath://div[@class='SearchResultsModule-results']//div[@class='PageList-items-item']/div[@class='PagePromo']")
             for article_element in article_elements:
@@ -177,8 +186,7 @@ class APNewsScraper:
                     else:
                         continue
                 except Exception as e:
-                    print(f"Error processing date: {e}")
-                    raise
+                    continue
                 
                 try:
                     title_element = self.driver.find_element('class:PagePromo-title',article_element)
@@ -219,7 +227,7 @@ class APNewsScraper:
             next_page = self.driver.find_element('class:Pagination-nextPage')
             if next_page:
                 self.driver.click_element(next_page)
-                time.sleep(self.sleepTime)
+                self.driver.wait_for_condition('return document.readyState == "complete"',self.sleepTime)
             else:
                 break
 
@@ -235,7 +243,7 @@ def runBot():
 
     if int(os.getenv("IS_PROD"))!=1:
         delta = 1
-        search_phrase = "OpenAI"
+        search_phrase = "openai"
         try:
             print(f"Processing Workitem: {delta}, {search_phrase}")
             with APNewsScraper(search_phrase, delta, baseUrl, outputFileName, LinuxChromiumPath) as scraper:
